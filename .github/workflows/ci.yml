@@ -1,0 +1,68 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Docker Image CI
+
+# Controls when the workflow will run
+on:
+  push:
+    branches: [ "main" ] # Triggers the workflow on push events to the main branch
+  pull_request:
+    branches: [ "main" ] # Optionally, run on pull requests to main for testing builds
+
+jobs:
+  build_and_push:
+    name: Build and Push Docker image
+    environment: production
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      # 1. Checkout the repository
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        # This step checks out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
+
+      # 2. Log in to Docker Hub
+      # This step uses the docker/login-action to log in to Docker Hub.
+      # You need to store your Docker Hub username and an Access Token as secrets in your GitHub repository.
+      # Go to Settings > Secrets and variables > Actions > New repository secret
+      # DOCKERHUB_USERNAME: Your Docker Hub username
+      # DOCKERHUB_TOKEN: Your Docker Hub Access Token (recommended over password)
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 3. Set up Docker Buildx
+      # This step sets up Docker Buildx, which is needed for building multi-platform images (optional but good practice)
+      # and provides more advanced build capabilities.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Build and push Docker image
+      # This step uses the docker/build-push-action to build your Docker image and push it to Docker Hub.
+      # Customize the 'tags' field with your Docker Hub username and desired image name and tag.
+      # For example: yourusername/my-app:latest, yourusername/my-app:${{ github.sha }}
+      # The context defaults to the root of your repository (where the Dockerfile should be).
+      # You can specify a different Dockerfile location with the 'file' parameter if needed.
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Context for the Docker build (root of the repository)
+          file: ./Dockerfile # Path to your Dockerfile (default is ./Dockerfile)
+          push: ${{ github.event_name != 'pull_request' }} # Only push on direct pushes to main, not on PRs
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/pet-plant-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/pet-plant-backend:${{ github.sha }}
+          # Optionally, add build arguments, labels, etc.
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 5. (Optional) Logout from Docker Hub
+      # It's good practice to log out after the operations are complete.
+      - name: Logout from Docker Hub
+        if: always() # Ensures this step runs even if previous steps fail
+        run: docker logout
