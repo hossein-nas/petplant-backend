@@ -5,9 +5,9 @@ name: Docker Image CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ "main" ] # Triggers the workflow on push events to the main branch
+    branches: ['main'] # Triggers the workflow on push events to the main branch
   pull_request:
-    branches: [ "main" ] # Optionally, run on pull requests to main for testing builds
+    branches: ['main'] # Optionally, run on pull requests to main for testing builds
 
 jobs:
   build_and_push:
@@ -49,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: . # Context for the Docker build (root of the repository)
-          file: ./Dockerfile # Path to your Dockerfile (default is ./Dockerfile)
+          file: ./deployment/Dockerfile # Path to your Dockerfile (default is ./Dockerfile)
           push: ${{ github.event_name != 'pull_request' }} # Only push on direct pushes to main, not on PRs
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/pet-plant-backend:latest
