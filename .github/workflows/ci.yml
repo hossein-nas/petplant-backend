@@ -65,7 +65,7 @@ jobs:
 
       - name: Copy deployment files to server
         uses: appleboy/scp-action@master
-        working-directory: './deployment'
+        working-directory: ./deployment
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
