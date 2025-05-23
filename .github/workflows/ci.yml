@@ -1,68 +1,86 @@
-# This is a basic workflow to help you get started with Actions
+name: PetPlant CI/CD Pipeline
 
-name: Docker Image CI
-
-# Controls when the workflow will run
 on:
   push:
-    branches: ['main'] # Triggers the workflow on push events to the main branch
+    branches: ['main']
+  # Re-enabling the trigger for pull requests targeting the main branch
   pull_request:
-    branches: ['main'] # Optionally, run on pull requests to main for testing builds
+    branches: ['main']
 
 jobs:
-  build_and_push:
+  #-------------------------
+  # JOB 1: BUILD & PUSH
+  #-------------------------
+  build:
     name: Build and Push Docker image
+    runs-on: ubuntu-latest
     environment: production
-    runs-on: ubuntu-latest # Use the latest Ubuntu runner
-
+    outputs:
+      image_tag: ${{ github.sha }}
     steps:
-      # 1. Checkout the repository
       - name: Check out the repo
         uses: actions/checkout@v4
-        # This step checks out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
 
-      # 2. Log in to Docker Hub
-      # This step uses the docker/login-action to log in to Docker Hub.
-      # You need to store your Docker Hub username and an Access Token as secrets in your GitHub repository.
-      # Go to Settings > Secrets and variables > Actions > New repository secret
-      # DOCKERHUB_USERNAME: Your Docker Hub username
-      # DOCKERHUB_TOKEN: Your Docker Hub Access Token (recommended over password)
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 3. Set up Docker Buildx
-      # This step sets up Docker Buildx, which is needed for building multi-platform images (optional but good practice)
-      # and provides more advanced build capabilities.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4. Build and push Docker image
-      # This step uses the docker/build-push-action to build your Docker image and push it to Docker Hub.
-      # Customize the 'tags' field with your Docker Hub username and desired image name and tag.
-      # For example: yourusername/my-app:latest, yourusername/my-app:${{ github.sha }}
-      # The context defaults to the root of your repository (where the Dockerfile should be).
-      # You can specify a different Dockerfile location with the 'file' parameter if needed.
+      # This step now has a condition to only PUSH on a direct push to main
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: . # Context for the Docker build (root of the repository)
-          file: ./deployment/Dockerfile # Path to your Dockerfile (default is ./Dockerfile)
-          push: ${{ github.event_name != 'pull_request' }} # Only push on direct pushes to main, not on PRs
+          context: .
+          file: ./deployment/Dockerfile
+          # This line is key: it only pushes if the event is a push to main
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/pet-plant-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/pet-plant-backend:${{ github.sha }}
-          # Optionally, add build arguments, labels, etc.
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-      # 5. (Optional) Logout from Docker Hub
-      # It's good practice to log out after the operations are complete.
-      - name: Logout from Docker Hub
-        if: always() # Ensures this step runs even if previous steps fail
-        run: docker logout
+  #-------------------------
+  # JOB 2: DEPLOY
+  #-------------------------
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+
+    # This 'if' condition ensures the deploy job ONLY runs on a push to the main branch.
+    # It will be skipped for all pull_request events.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Copy deployment files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: 'deployment/docker-compose.yml,deployment/nginx.conf'
+          target: '~/petplant'
+
+      - name: SSH and Run Docker Compose
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/petplant
+            export BACKEND_IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            docker-compose pull
+            docker-compose up -d
+            docker image prune -af
