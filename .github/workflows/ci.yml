@@ -13,7 +13,6 @@ jobs:
     environment: production
     outputs:
       image_tag: ${{ github.sha }}
-      docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -73,7 +72,7 @@ jobs:
             cd ~/petplant/deployment
 
             export BACKEND_IMAGE_TAG=${{ needs.build.outputs.image_tag }}
-            export DOCKERHUB_USERNAME=${{ needs.build.outputs.docker_username }}
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME}}
             echo "--- Verifying environment variables ---"
             env | grep DOCKER
             echo "--- Pulling new images ---"
