@@ -81,3 +81,4 @@ jobs:
             docker compose up -d
             echo "--- Cleaning up old images ---"
             docker image prune -af
+            netplan apply
