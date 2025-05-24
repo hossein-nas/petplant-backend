@@ -73,8 +73,7 @@ jobs:
 
             export BACKEND_IMAGE_TAG=${{ needs.build.outputs.image_tag }}
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME}}
-            echo "--- Verifying environment variables ---"
-            env | grep DOCKER
+            docker login
             echo "--- Pulling new images ---"
             docker compose pull
             echo "--- Starting services ---"
