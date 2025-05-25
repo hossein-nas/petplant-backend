@@ -30,12 +30,12 @@ services:
 
   # The Redis Service
   redis:
-    image: 'redis:7-alpine'
+    image: redis:7-alpine
     restart: always
 
   # The NGINX Reverse Proxy
   nginx:
-    image: 'nginx:latest'
+    image: nginx:latest
     restart: always
     ports:
       - '8888:80' # Maps port 80 on your server to port 80 in the NGINX container
