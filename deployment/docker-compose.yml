@@ -4,7 +4,7 @@ services:
   # The Backend Service (your application)
   backend:
     # The image is dynamically set by the CI/CD pipeline
-    image: ${DOCKERHUB_USERNAME}/pet-plant-backend:${BACKEND_IMAGE_TAG:-latest}
+    image: ${DOCKERHUB_USERNAME}/petosapp-backend:${BACKEND_IMAGE_TAG:-latest}
     restart: always
     # The 'expose' instruction makes the port available to other services in the same network,
     # but not to the host machine. NGINX will connect to this.
@@ -16,6 +16,17 @@ services:
       # Add any environment variables your app needs to run
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+  frontend:
+    # The image is dynamically set by the CI/CD pipeline
+    image: ${DOCKERHUB_USERNAME}/petosapp-frontend:${FRONTEND_IMAGE_TAG:-latest}
+    restart: always
+    # The 'expose' instruction makes the port available to other services in the same network,
+    # but not to the host machine. NGINX will connect to this.
+    expose:
+      - '4173' # Change to your application's actual port
+    environment:
+      # Add any environment variables your app needs to run
+      - VITE_BACKEND_URL=https://petosapp.ir/api
 
   # The Redis Service
   redis:
