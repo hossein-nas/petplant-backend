@@ -1,4 +1,4 @@
-name: PetPlant CI/CD Pipeline
+name: PetosApp Backend CI/CD Pipeline
 
 on:
   push:
@@ -33,8 +33,8 @@ jobs:
           file: ./deployment/Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/petplant-backend:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/petplant-backend:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -49,8 +49,6 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      # --- This is the new, single scp step ---
-      # It copies the entire 'deployment' directory into '~/petplant' on the server.
       - name: Copy deployment directory to server
         uses: appleboy/scp-action@master
         with:
