@@ -33,12 +33,12 @@ jobs:
           # Determine values based on the branch
           if [ "${{ github.ref_name }}" = "production" ]; then
             IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend"
-            BUILD_TARGET_STAGE="production" # Corresponds to LABEL stage="production" in Backend Dockerfile
+            BUILD_TARGET_STAGE="production-build" # Corresponds to LABEL stage="production" in Backend Dockerfile
             NODE_ENV_ARG="production"
             BUILD_ENV_ARG="production"
           elif [ "${{ github.ref_name }}" = "development" ]; then
             IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend-development"
-            BUILD_TARGET_STAGE="development" # Corresponds to LABEL stage="development" in Backend Dockerfile
+            BUILD_TARGET_STAGE="development-build" # Corresponds to LABEL stage="development" in Backend Dockerfile
             NODE_ENV_ARG="development"
             BUILD_ENV_ARG="development"
           else
