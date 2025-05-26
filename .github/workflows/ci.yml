@@ -64,7 +64,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
@@ -119,7 +119,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/petplant/deployment
-            export DOCKERHUB_USERNAME=${{ env.DOCKERHUB_USERNAME }}
+            export DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
 
             echo "--- Logging into Docker Hub on server ---"
             docker login -u "${DOCKERHUB_USERNAME}" -p "${{ secrets.DOCKERHUB_TOKEN_FOR_SERVER_PULL }}"
