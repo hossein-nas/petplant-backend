@@ -32,18 +32,18 @@ jobs:
 
           # Determine values based on the branch
           if [ "${{ github.ref_name }}" = "production" ]; then
-            IMAGE_NAME="${{ vars.DOCKER_USERNAME }}/petosapp-backend" # Use the environment variable
+            IMAGE_NAME="${{ vars.DOCKERHUB_USERNAME }}/petosapp-backend" # Use the environment variable
             BUILD_TARGET_STAGE="production-build" # Corresponds to LABEL stage="production" in Backend Dockerfile
             NODE_ENV_ARG="production"
             BUILD_ENV_ARG="production"
           elif [ "${{ github.ref_name }}" = "development" ]; then
-            IMAGE_NAME="${{ vars.DOCKER_USERNAME }}/petosapp-backend-development" # Use the environment variable
+            IMAGE_NAME="${{ vars.DOCKERHUB_USERNAME }}/petosapp-backend-development" # Use the environment variable
             BUILD_TARGET_STAGE="development-build" # Corresponds to LABEL stage="development" in Backend Dockerfile
             NODE_ENV_ARG="development"
             BUILD_ENV_ARG="development"
           else
             # Fallback for other branches (e.g., feature branches if you extend triggers)
-            IMAGE_NAME="${{ vars.DOCKER_USERNAME }}/petosapp-backend-temp" # Use the environment variable
+            IMAGE_NAME="${{ vars.DOCKERHUB_USERNAME }}/petosapp-backend-temp" # Use the environment variable
             BUILD_TARGET_STAGE="production"
             NODE_ENV_ARG="production"
             BUILD_ENV_ARG="production"
