@@ -1,10 +1,10 @@
-cname: PetosApp Backend CI/CD Pipeline
+name: PetosApp Backend CI/CD Pipeline
 
 on:
   push:
-    branches: ['main', 'development'] # Trigger on pushes to main and development
+    branches: ['production', 'development'] # Trigger on pushes to production and development
   pull_request:
-    branches: ['main', 'development'] # Trigger on PRs to main and development
+    branches: ['production', 'development'] # Trigger on PRs to production and development
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     # Set the environment based on the branch.
     # Ensure 'development' and 'production' environments are configured in your GitHub repo settings
     # with the necessary secrets (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN).
-    environment: ${{ (github.ref_name == 'main' && 'production') || (github.ref_name == 'development' && 'development') || 'production' }}
+    environment: ${{ (github.ref_name == 'production' && 'production') || (github.ref_name == 'development' && 'development') || 'production' }}
     outputs:
       image_tag: ${{ github.sha }}
       image_name: ${{ steps.docker_meta.outputs.image_name }} # Output the determined image name
@@ -31,7 +31,7 @@ jobs:
           BUILD_ENV_ARG=""
 
           # Determine values based on the branch
-          if [ "${{ github.ref_name }}" = "main" ]; then
+          if [ "${{ github.ref_name }}" = "production" ]; then
             IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend"
             BUILD_TARGET_STAGE="production" # Corresponds to LABEL stage="production" in Backend Dockerfile
             NODE_ENV_ARG="production"
@@ -75,8 +75,8 @@ jobs:
         with:
           context: .
           file: ./deployment/Dockerfile
-          # Push only on direct pushes to main or development branches, not on PRs
-          push: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development') }}
+          # Push only on direct pushes to production or development branches, not on PRs
+          push: ${{ github.event_name == 'push' && (github.ref_name == 'production' || github.ref_name == 'development') }}
           tags: |
             ${{ steps.docker_meta.outputs.image_name }}:latest
             ${{ steps.docker_meta.outputs.image_name }}:${{ github.sha }}
@@ -96,8 +96,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment: production # This job is specifically for the production environment
-    # Only run on push to the main branch
-    if: github.event_name == 'push' && github.ref_name == 'main'
+    # Only run on push to the production branch
+    if: github.event_name == 'push' && github.ref_name == 'production'
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
