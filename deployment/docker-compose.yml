@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # The Backend Service (your application)
-  backend:
+  backend-production:
     # The image is dynamically set by the CI/CD pipeline
     image: ${DOCKERHUB_USERNAME}/petosapp-backend:latest
     restart: always
@@ -16,7 +16,7 @@ services:
       # Add any environment variables your app needs to run
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-  frontend:
+  frontend-production:
     # The image is dynamically set by the CI/CD pipeline
     image: ${DOCKERHUB_USERNAME}/petosapp-frontend:latest
     restart: always
