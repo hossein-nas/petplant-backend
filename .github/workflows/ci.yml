@@ -23,6 +23,8 @@ jobs:
 
       - name: Determine Docker metadata and build arguments
         id: docker_meta
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }} # Pass DOCKERHUB_USERNAME as an environment variable
         run: |
           # Initialize variables with default values
           IMAGE_NAME=""
@@ -32,18 +34,18 @@ jobs:
 
           # Determine values based on the branch
           if [ "${{ github.ref_name }}" = "production" ]; then
-            IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend"
+            IMAGE_NAME="${{ env.DOCKER_USERNAME }}/petosapp-backend" # Use the environment variable
             BUILD_TARGET_STAGE="production-build" # Corresponds to LABEL stage="production" in Backend Dockerfile
             NODE_ENV_ARG="production"
             BUILD_ENV_ARG="production"
           elif [ "${{ github.ref_name }}" = "development" ]; then
-            IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend-development"
+            IMAGE_NAME="${{ env.DOCKER_USERNAME }}/petosapp-backend-development" # Use the environment variable
             BUILD_TARGET_STAGE="development-build" # Corresponds to LABEL stage="development" in Backend Dockerfile
             NODE_ENV_ARG="development"
             BUILD_ENV_ARG="development"
           else
             # Fallback for other branches (e.g., feature branches if you extend triggers)
-            IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend-temp"
+            IMAGE_NAME="${{ env.DOCKER_USERNAME }}/petosapp-backend-temp" # Use the environment variable
             BUILD_TARGET_STAGE="production"
             NODE_ENV_ARG="production"
             BUILD_ENV_ARG="production"
@@ -102,14 +104,14 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.yml to server
+      - name: Copy deployment directory to server
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: 'deployment'
-          target: '~/petplant'
+          source: 'deployment' # This will copy the entire 'deployment' directory
+          target: '~/petplant' # To this directory on the server
 
       - name: SSH and Run Docker Compose
         uses: appleboy/ssh-action@master
@@ -118,13 +120,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Change directory into the nested folder where the compose file is.
             cd ~/petplant/deployment
-
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
 
             echo "--- Logging into Docker Hub on server ---"
-            docker login -u "${DOCKERHUB_USERNAME}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
+            docker login -u "${DOCKERHUB_USERNAME}" -p "${{ secrets.DOCKERHUB_TOKEN_FOR_SERVER_PULL }}"
 
             echo "--- Pulling new images for backend ---"
             docker compose pull backend-${{ steps.docker_meta.outputs.build_env_arg }}
