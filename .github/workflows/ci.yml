@@ -122,13 +122,13 @@ jobs:
             export DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
 
             echo "--- Logging into Docker Hub on server ---"
-            docker login -u "${DOCKERHUB_USERNAME}" -p "${{ secrets.DOCKERHUB_TOKEN_FOR_SERVER_PULL }}"
+            docker login -u "${DOCKERHUB_USERNAME}" -p "${{ vars.DOCKERHUB_USERNAME}}"
 
             echo "--- Pulling new images for backend ---"
-            docker compose pull backend-${{ steps.docker_meta.outputs.build_env_arg }}
+            docker compose pull backend-${{ github.ref_name }}
 
             echo "--- Starting services ---"
-            docker compose up -d backend-${{ steps.docker_meta.outputs.build_env_arg }}
+            docker compose up -d backend-${{ github.ref_name }}
 
             echo "--- Cleaning up old images ---"
             docker image prune -af
