@@ -65,6 +65,7 @@ services:
     restart: always
     ports:
       - '8888:80' # Maps port 80 on your server to port 80 in the NGINX container
+      - '8889:81' # Maps port 80 on your server to port 80 in the NGINX container
       - '4443:443' # For future SSL/HTTPS
     volumes:
       # Mounts your custom NGINX config from the same directory on the server
