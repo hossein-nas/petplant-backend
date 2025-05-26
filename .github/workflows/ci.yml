@@ -1,21 +1,65 @@
-name: PetosApp Backend CI/CD Pipeline
+cname: PetosApp Backend CI/CD Pipeline
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'development'] # Trigger on pushes to main and development
   pull_request:
-    branches: ['main']
+    branches: ['main', 'development'] # Trigger on PRs to main and development
 
 jobs:
   build:
     name: Build and Push Docker image
     runs-on: ubuntu-latest
-    environment: production
+    # Set the environment based on the branch.
+    # Ensure 'development' and 'production' environments are configured in your GitHub repo settings
+    # with the necessary secrets (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN).
+    environment: ${{ (github.ref_name == 'main' && 'production') || (github.ref_name == 'development' && 'development') || 'production' }}
     outputs:
       image_tag: ${{ github.sha }}
+      image_name: ${{ steps.docker_meta.outputs.image_name }} # Output the determined image name
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+
+      - name: Determine Docker metadata and build arguments
+        id: docker_meta
+        run: |
+          # Initialize variables with default values
+          IMAGE_NAME=""
+          BUILD_TARGET_STAGE=""
+          NODE_ENV_ARG=""
+          BUILD_ENV_ARG=""
+
+          # Determine values based on the branch
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend"
+            BUILD_TARGET_STAGE="production" # Corresponds to LABEL stage="production" in Backend Dockerfile
+            NODE_ENV_ARG="production"
+            BUILD_ENV_ARG="production"
+          elif [ "${{ github.ref_name }}" = "development" ]; then
+            IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend-development"
+            BUILD_TARGET_STAGE="development" # Corresponds to LABEL stage="development" in Backend Dockerfile
+            NODE_ENV_ARG="development"
+            BUILD_ENV_ARG="development"
+          else
+            # Fallback for other branches (e.g., feature branches if you extend triggers)
+            IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend-temp"
+            BUILD_TARGET_STAGE="production"
+            NODE_ENV_ARG="production"
+            BUILD_ENV_ARG="production"
+          fi
+
+          # Set outputs for subsequent steps
+          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "build_target_stage=$BUILD_TARGET_STAGE" >> $GITHUB_OUTPUT
+          echo "node_env_arg=$NODE_ENV_ARG" >> $GITHUB_OUTPUT
+          echo "build_env_arg=$BUILD_ENV_ARG" >> $GITHUB_OUTPUT
+
+          echo "Determined Image Name: $IMAGE_NAME"
+          echo "Determined Build Target Stage: $BUILD_TARGET_STAGE"
+          echo "Determined NODE_ENV Arg: $NODE_ENV_ARG"
+          echo "Determined BUILD_ENV Arg: $BUILD_ENV_ARG"
+        shell: bash
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -31,25 +75,34 @@ jobs:
         with:
           context: .
           file: ./deployment/Dockerfile
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          # Push only on direct pushes to main or development branches, not on PRs
+          push: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development') }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/petosapp-backend:${{ github.sha }}
+            ${{ steps.docker_meta.outputs.image_name }}:latest
+            ${{ steps.docker_meta.outputs.image_name }}:${{ github.sha }}
+          # Target the specific final Dockerfile stage based on the branch
+          target: ${{ steps.docker_meta.outputs.build_target_stage }}
+          # Pass build arguments to the Dockerfile's build stages
+          build-args: |
+            NODE_ENV=${{ steps.docker_meta.outputs.node_env_arg }}
+            BUILD_ENV=${{ steps.docker_meta.outputs.build_env_arg }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ steps.docker_meta.outputs.image_name }}
 
   deploy:
-    name: Deploy to Server
+    name: Deploy to Server (Production)
     runs-on: ubuntu-latest
     needs: build
-    environment: production
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production # This job is specifically for the production environment
+    # Only run on push to the main branch
+    if: github.event_name == 'push' && github.ref_name == 'main'
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Copy deployment directory to server
+      - name: Copy docker-compose.yml to server
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -58,7 +111,6 @@ jobs:
           source: 'deployment'
           target: '~/petplant'
 
-      # --- This script is updated to work from the nested directory ---
       - name: SSH and Run Docker Compose
         uses: appleboy/ssh-action@master
         with:
@@ -69,13 +121,16 @@ jobs:
             # Change directory into the nested folder where the compose file is.
             cd ~/petplant/deployment
 
-            export BACKEND_IMAGE_TAG=${{ needs.build.outputs.image_tag }}
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME}}
-            docker login
-            echo "--- Pulling new images ---"
-            docker compose pull
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+
+            echo "--- Logging into Docker Hub on server ---"
+            docker login -u "${DOCKERHUB_USERNAME}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
+
+            echo "--- Pulling new images for backend ---"
+            docker compose pull backend-${{ steps.docker_meta.outputs.build_env_arg }}
+
             echo "--- Starting services ---"
-            docker compose up -d
+            docker compose up -d backend-${{ steps.docker_meta.outputs.build_env_arg }}
+
             echo "--- Cleaning up old images ---"
             docker image prune -af
-            netplan apply
